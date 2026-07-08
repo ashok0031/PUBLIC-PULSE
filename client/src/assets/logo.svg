@@ -1,0 +1,15 @@
+<svg width="820" height="666" viewBox="0 0 820 666" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="820" height="666" fill="#FDF6EE"/>
+  <g>
+    <!-- Center fist -->
+    <path d="M410 100 C470 60 570 120 540 220 L540 500 L280 500 L280 220 C250 120 350 60 410 100 Z" fill="#E2B13C"/>
+    <!-- Left fists -->
+    <path d="M220 200 C250 180 320 220 300 300 L300 500 L180 500 L180 300 C160 220 190 180 220 200 Z" fill="#A08B6B"/>
+    <path d="M120 300 C140 290 180 320 170 370 L170 500 L90 500 L90 370 C80 320 100 290 120 300 Z" fill="#4B3B4F"/>
+    <!-- Right fists -->
+    <path d="M600 200 C570 180 500 220 520 300 L520 500 L640 500 L640 300 C660 220 630 180 600 200 Z" fill="#A08B6B"/>
+    <path d="M700 300 C680 290 640 320 650 370 L650 500 L730 500 L730 370 C740 320 720 290 700 300 Z" fill="#4B3B4F"/>
+    <!-- Text -->
+    <text x="410" y="590" text-anchor="middle" font-family="Georgia, serif" font-size="48" fill="#222" font-weight="bold" letter-spacing="8">PUBLIC PULSE</text>
+  </g>
+</svg> 

@@ -1,0 +1,162 @@
+version: '3.8'
+
+services:
+  # Redis for Celery message broker and caching
+  redis:
+    image: redis:7-alpine
+    container_name: public_pulse_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Meilisearch for fast search indexing
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    container_name: public_pulse_meilisearch
+    ports:
+      - "7700:7700"
+    environment:
+      - MEILI_MASTER_KEY=masterKey
+      - MEILI_ENV=development
+    volumes:
+      - meili_data:/meili_data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7700/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL database (when ready to migrate from SQLite)
+  postgres:
+    image: postgres:15-alpine
+    container_name: public_pulse_postgres
+    environment:
+      POSTGRES_DB: public_pulse
+      POSTGRES_USER: public_pulse_user
+      POSTGRES_PASSWORD: public_pulse_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U public_pulse_user -d public_pulse"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Flask backend application
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: public_pulse_backend
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_APP=run.py
+      - FLASK_ENV=development
+      - REDIS_URL=redis://redis:6379/0
+      - MEILISEARCH_URL=http://meilisearch:7700
+      - MEILISEARCH_MASTER_KEY=masterKey
+      - DATABASE_URL=postgresql://public_pulse_user:public_pulse_password@postgres:5432/public_pulse
+      # Fallback to SQLite for now
+      - DATABASE_URL_FALLBACK=sqlite:///app.db
+    volumes:
+      - ./server:/app
+      - ./database:/app/instance
+    depends_on:
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    command: >
+      sh -c "
+        echo 'Waiting for services to be ready...' &&
+        sleep 10 &&
+        python -m flask db upgrade &&
+        python -m flask run --host=0.0.0.0 --port=5000
+      "
+
+  # Celery worker for background tasks
+  celery_worker:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: public_pulse_celery_worker
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - MEILISEARCH_URL=http://meilisearch:7700
+      - MEILISEARCH_MASTER_KEY=masterKey
+      - DATABASE_URL=postgresql://public_pulse_user:public_pulse_password@postgres:5432/public_pulse
+    volumes:
+      - ./server:/app
+      - ./database:/app/instance
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    restart: unless-stopped
+    command: celery -A app.celery_app.celery worker --loglevel=info
+
+  # Celery beat for scheduled tasks
+  celery_beat:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: public_pulse_celery_beat
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - MEILISEARCH_URL=http://meilisearch:7700
+      - MEILISEARCH_MASTER_KEY=masterKey
+      - DATABASE_URL=postgresql://public_pulse_user:public_pulse_password@postgres:5432/public_pulse
+    volumes:
+      - ./server:/app
+      - ./database:/app/instance
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    restart: unless-stopped
+    command: celery -A app.celery_app.celery beat --loglevel=info
+
+  # React frontend
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: public_pulse_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    restart: unless-stopped
+    command: npm start
+
+volumes:
+  redis_data:
+  meili_data:
+  postgres_data:
+
+networks:
+  default:
+    name: public_pulse_network 

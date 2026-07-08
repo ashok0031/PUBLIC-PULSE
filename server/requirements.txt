@@ -1,0 +1,16 @@
+Flask
+Flask-SQLAlchemy
+Flask-Migrate
+Werkzeug
+pytest 
+google-genai
+celery
+redis
+psycopg2-binary
+meilisearch
+beautifulsoup4
+requests
+python-dotenv
+flask-cors
+flask-mail
+schedule 
