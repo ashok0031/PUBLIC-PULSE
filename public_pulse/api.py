@@ -28,8 +28,8 @@ def create_app() -> Any:
 
         try:
             result = sentiment_analyzer.analyze(str(text), model=str(model))
-        except ValueError as err:
-            return jsonify({"error": str(err)}), 400
+        except ValueError:
+            return jsonify({"error": "invalid sentiment request payload"}), 400
 
         return jsonify({"label": result.label, "score": result.score, "model": result.model})
 
@@ -43,8 +43,8 @@ def create_app() -> Any:
 
         try:
             result = trend_analyzer.analyze(events)
-        except (ValueError, KeyError) as err:
-            return jsonify({"error": str(err)}), 400
+        except (ValueError, KeyError):
+            return jsonify({"error": "invalid trend request payload"}), 400
 
         return jsonify(
             {
